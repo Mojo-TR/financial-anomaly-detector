@@ -9,7 +9,7 @@ load_dotenv()
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 engine = create_engine(os.getenv("DATABASE_URL"))
 
-def ingest_prices(tickers, start, end) -> None:
+def ingest_prices(tickers, start, end):  
     
     prices = yf.download(tickers, start=start, end=end, group_by='ticker')
 
