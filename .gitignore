@@ -220,3 +220,7 @@ __marimo__/
 .streamlit/secrets.toml
 *.pyc
 mlruns/
+.RData
+.Rhistory
+basic_auth.db
+mlflow.db
