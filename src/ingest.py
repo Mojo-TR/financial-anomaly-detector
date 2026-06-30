@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import plotly.express as px
 import yfinance as yf
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
