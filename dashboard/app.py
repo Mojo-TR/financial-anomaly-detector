@@ -119,10 +119,16 @@ if len(date_range) != 2:
     
 price_data = get_price_data(selected_tickers, date_range[0], date_range[1])
 runs = get_mlflow_data()
-latest_run_time = runs["start_time"].max()
-avg_drift_ks = runs["metrics.drift_ks_statistic"].mean()
-avg_anomaly_count = runs["metrics.anomaly_count"].mean()
-contamination = runs["params.contamination"].iloc[0]
+if runs.empty:
+    latest_run_time = None
+    avg_drift_ks = None
+    avg_anomaly_count = None
+    contamination = None
+else:
+    latest_run_time = runs["start_time"].max()
+    avg_drift_ks = runs["metrics.drift_ks_statistic"].mean()
+    avg_anomaly_count = runs["metrics.anomaly_count"].mean()
+    contamination = runs["params.contamination"].iloc[0]
 
 if not price_data.empty and len(date_range) == 2:
     # Price and Anomaly Plot
@@ -222,10 +228,10 @@ if not price_data.empty and len(date_range) == 2:
     
     st.subheader("Model Metadata")
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Last Trained", latest_run_time.strftime("%Y-%m-%d"))
-    col2.metric("Contamination", contamination)
-    col3.metric("Avg Anomaly Count", f"{avg_anomaly_count:.1f}")
-    col4.metric("Avg Drift KS", f"{avg_drift_ks:.3f}")
+    col1.metric("Last Trained", latest_run_time.strftime("%Y-%m-%d") if latest_run_time else "N/A")
+    col2.metric("Contamination", contamination if contamination else "N/A")
+    col3.metric("Avg Anomaly Count", f"{avg_anomaly_count:.1f}" if avg_anomaly_count else "N/A")
+    col4.metric("Avg Drift KS", f"{avg_drift_ks:.3f}" if avg_drift_ks else "N/A")
 
 elif not selected_tickers:
     st.warning("Please select at least one ticker to display data.")
