@@ -52,6 +52,8 @@ def get_dates():
     
 @st.cache_data
 def get_price_data(selected_tickers, start_date, end_date):
+    if not selected_tickers:
+        return pd.DataFrame()
     try:
         engine = get_engine()
         tickers_str = ", ".join(f"'{ticker}'" for ticker in selected_tickers)
