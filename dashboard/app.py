@@ -237,3 +237,6 @@ if not price_data.empty and len(date_range) == 2:
 
 elif not selected_tickers:
     st.warning("Please select at least one ticker to display data.")
+    
+elif price_data.empty:
+    st.warning("No data available for the selected tickers and date range.")
