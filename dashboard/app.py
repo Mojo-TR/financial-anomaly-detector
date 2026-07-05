@@ -22,14 +22,28 @@ def get_engine():
 
 @st.cache_data
 def get_tickers():
-    engine = get_engine()
-    with engine.connect() as conn:
-        result = conn.execute(text("SELECT DISTINCT ticker FROM price_data"))
-        tickers = [row[0] for row in result]
-        return tickers
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT DISTINCT ticker FROM price_data"))
+            tickers = [row[0] for row in result]
+            return tickers
+    except Exception as e:
+        st.error(f"Could not load tickers: {e}")
+        return []
     
 @st.cache_data
 def get_dates():
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT MIN(date), MAX(date) FROM price_data"))
+            min_date, max_date = result.fetchone()
+            return min_date, max_date
+    except Exception as e:
+        st.error(f"Could not load date range: {e}")
+        return None, None
+    
     engine = get_engine()
     with engine.connect() as conn:
         result = conn.execute(text("SELECT MIN(date), MAX(date) FROM price_data"))
@@ -38,35 +52,35 @@ def get_dates():
     
 @st.cache_data
 def get_price_data(selected_tickers, start_date, end_date):
-    if not selected_tickers:
+    try:
+        engine = get_engine()
+        tickers_str = ", ".join(f"'{ticker}'" for ticker in selected_tickers)
+        
+        query = text(f"""
+            SELECT
+                alerts.ticker,
+                alerts.date,
+                alerts.anomaly_score,
+                alerts.is_anomaly,
+                alerts.r_pvalue,
+                features.volume_zscore,
+                price_data.close
+            FROM alerts
+            INNER JOIN price_data
+                ON alerts.ticker = price_data.ticker
+                AND alerts.date = price_data.date
+            LEFT JOIN features
+                ON alerts.ticker = features.ticker
+                AND alerts.date = features.date
+            WHERE alerts.ticker IN ({tickers_str})
+            AND alerts.date BETWEEN :start_date AND :end_date
+        """)
+        
+        return pd.read_sql(query, engine, params={"start_date": start_date, "end_date": end_date})
+    except Exception as e:
+        st.error(f"Could not load price data: {e}")
         return pd.DataFrame()
-
-    engine = get_engine()
-
-    tickers_str = ", ".join(f"'{ticker}'" for ticker in selected_tickers)
     
-    query = text(f"""
-        SELECT
-            alerts.ticker,
-            alerts.date,
-            alerts.anomaly_score,
-            alerts.is_anomaly,
-            alerts.r_pvalue,
-            features.volume_zscore,
-            price_data.close
-        FROM alerts
-        INNER JOIN price_data
-            ON alerts.ticker = price_data.ticker
-            AND alerts.date = price_data.date
-        LEFT JOIN features
-            ON alerts.ticker = features.ticker
-            AND alerts.date = features.date
-        WHERE alerts.ticker IN ({tickers_str})
-        AND alerts.date BETWEEN :start_date AND :end_date
-    """)
-
-    return pd.read_sql( query, engine, params={"start_date": start_date, "end_date": end_date,})
-
 @st.cache_data
 def get_mlflow_data():
     runs = mlflow.search_runs(
@@ -87,8 +101,15 @@ st.title("Financial Anomaly Detector")
 st.sidebar.header("Database Connection")
 
 engine = get_engine()
-selected_tickers = st.sidebar.multiselect("Select Tickers", get_tickers(), default=["AAPL", "MSFT"])
+available_tickers = get_tickers()
+default_tickers = [t for t in ["AAPL", "MSFT"] if t in available_tickers]
+selected_tickers = st.sidebar.multiselect("Select Tickers", available_tickers, default=default_tickers)
 min_date, max_date = get_dates()
+
+if min_date is None or max_date is None:
+    st.warning("No data available in the database.")
+    st.stop()
+
 date_range = st.sidebar.date_input("Select Date Range", value=(min_date, max_date), min_value=min_date, max_value=max_date)
 show_dual_only = st.sidebar.checkbox("Show only dual-confirmed anomalies")
 
