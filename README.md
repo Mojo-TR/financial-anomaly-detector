@@ -110,12 +110,6 @@ python src/validate_r.py
 
 ---
 
-## 📋 Resume Pitch
-
-> Built a production-ready MLOps anomaly detection pipeline using Python, R, SQL, and Prefect, featuring automated model drift monitoring (KS-test), scheduled daily retraining, R/Python statistical cross-validation via anomalize, and a live Plotly dashboard. Containerized with Docker and deployed to Streamlit Community Cloud with a cloud PostgreSQL backend (Supabase).
-
----
-
 ## 📁 Project Structure
 
 ```
