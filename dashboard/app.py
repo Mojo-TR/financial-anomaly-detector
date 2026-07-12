@@ -44,12 +44,6 @@ def get_dates():
         st.error(f"Could not load date range: {e}")
         return None, None
     
-    engine = get_engine()
-    with engine.connect() as conn:
-        result = conn.execute(text("SELECT MIN(date), MAX(date) FROM price_data"))
-        min_date, max_date = result.fetchone()
-        return min_date, max_date
-    
 @st.cache_data
 def get_price_data(selected_tickers, start_date, end_date):
     if not selected_tickers:
@@ -84,13 +78,26 @@ def get_price_data(selected_tickers, start_date, end_date):
         return pd.DataFrame()
     
 @st.cache_data
-def get_mlflow_data():
-    runs = mlflow.search_runs(
-        experiment_names=["financial_anomaly_detection"],
-        order_by=["start_time DESC"]
-    )
-    
-    return runs
+def get_model_metadata():
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT ticker, last_trained, contamination, anomaly_count, 
+                       drift_ks_statistic, drift_p_value
+                FROM model_metadata
+                ORDER BY last_trained DESC
+            """))
+            rows = result.fetchall()
+            if not rows:
+                return pd.DataFrame()
+            return pd.DataFrame(rows, columns=[
+                'ticker', 'last_trained', 'contamination', 
+                'anomaly_count', 'drift_ks_statistic', 'drift_p_value'
+            ])
+    except Exception as e:
+        st.error(f"Could not load model metadata: {e}")
+        return pd.DataFrame()
 
 def color_rows(row):
     if row["dual_confirmed"]:
@@ -120,17 +127,6 @@ if len(date_range) != 2:
     st.stop()
     
 price_data = get_price_data(selected_tickers, date_range[0], date_range[1])
-runs = get_mlflow_data()
-if runs.empty:
-    latest_run_time = None
-    avg_drift_ks = None
-    avg_anomaly_count = None
-    contamination = None
-else:
-    latest_run_time = runs["start_time"].max()
-    avg_drift_ks = runs["metrics.drift_ks_statistic"].mean()
-    avg_anomaly_count = runs["metrics.anomaly_count"].mean()
-    contamination = runs["params.contamination"].iloc[0]
 
 if not price_data.empty and len(date_range) == 2:
     # Price and Anomaly Plot
@@ -228,12 +224,22 @@ if not price_data.empty and len(date_range) == 2:
         }
     )
     
-    st.subheader("Model Metadata")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Last Trained", latest_run_time.strftime("%Y-%m-%d") if latest_run_time else "N/A")
-    col2.metric("Contamination", contamination if contamination else "N/A")
-    col3.metric("Avg Anomaly Count", f"{avg_anomaly_count:.1f}" if avg_anomaly_count else "N/A")
-    col4.metric("Avg Drift KS", f"{avg_drift_ks:.3f}" if avg_drift_ks else "N/A")
+    metadata = get_model_metadata()
+    if not metadata.empty:
+        latest_run_time = metadata['last_trained'].max()
+        avg_drift_ks = metadata['drift_ks_statistic'].mean()
+        avg_anomaly_count = metadata['anomaly_count'].mean()
+        contamination = metadata['contamination'].iloc[0]
+        
+        st.subheader("Model Metadata")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Last Trained", latest_run_time.strftime("%Y-%m-%d"))
+        col2.metric("Contamination", contamination)
+        col3.metric("Avg Anomaly Count", f"{avg_anomaly_count:.1f}")
+        col4.metric("Avg Drift KS", f"{avg_drift_ks:.3f}")
+    else:
+        st.subheader("Model Metadata")
+        st.info("No model metadata available yet.")
 
 elif not selected_tickers:
     st.warning("Please select at least one ticker to display data.")

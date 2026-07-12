@@ -56,6 +56,9 @@ def train_and_log(tickers):
             mlflow.log_metric("anomaly_pct", anomaly_count / len(df))
 
             # Drift monitoring — compare new scores against previous run in alerts
+            stat = 0.0
+            p_value = 1.0
+
             previous_scores = get_previous_scores(ticker)
             if previous_scores:
                 stat, p_value = ks_2samp(previous_scores, df['anomaly_score'].tolist())
@@ -85,6 +88,22 @@ def train_and_log(tickers):
                 conn.commit()
 
             print(f"{ticker}: {anomaly_count} anomalies logged")
+            
+        # Write metadata to Supabase-accessible table
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO model_metadata 
+                    (ticker, last_trained, contamination, anomaly_count, drift_ks_statistic, drift_p_value)
+                VALUES 
+                    (:ticker, NOW(), :contamination, :anomaly_count, :drift_ks_statistic, :drift_p_value)
+            """), {
+                "ticker": ticker,
+                "contamination": contamination,
+                "anomaly_count": anomaly_count,
+                "drift_ks_statistic": stat if previous_scores else 0.0,
+                "drift_p_value": p_value if previous_scores else 1.0
+            })
+            conn.commit()
 
 if __name__ == "__main__":
     tickers = ["AAPL", "MSFT", "JPM", "BAC", "XOM", "CVX", "JNJ", "PFE", "AMZN", "TSLA"]

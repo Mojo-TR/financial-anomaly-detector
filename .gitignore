@@ -224,3 +224,4 @@ mlruns/
 .Rhistory
 basic_auth.db
 mlflow.db
+supabase_update.sql
