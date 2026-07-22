@@ -2,8 +2,10 @@ import os
 import pandas as pd
 import plotly.express as px
 import yfinance as yf
+from datetime import date
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
+from sqlalchemy.dialects.postgresql import insert
 from pathlib import Path
 
 load_dotenv()
@@ -26,8 +28,18 @@ def ingest_prices(tickers, start, end):
     df_out = pd.concat(frames, ignore_index=True)
     df_out['date'] = pd.to_datetime(df_out['date']).dt.date
     
-    df_out.to_sql('price_data', engine, if_exists='append', index=False)
-    print(f"Inserted {len(df_out)} rows into price_data")
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                INSERT INTO price_data
+                (ticker, date, open, high, low, close, volume)
+                VALUES
+                (:ticker, :date, :open, :high, :low, :close, :volume)
+                ON CONFLICT (ticker, date) DO NOTHING
+            """),
+            df_out.to_dict("records")
+        )
+    print("Inserted rows into price_data")
     
     with engine.connect() as conn:
         result = conn.execute(text("SELECT ticker, COUNT(*) FROM price_data GROUP BY ticker ORDER BY ticker"))
@@ -36,4 +48,4 @@ def ingest_prices(tickers, start, end):
 
 if __name__ == "__main__":
     tickers = ["AAPL", "MSFT", "JPM", "BAC", "XOM", "CVX", "JNJ", "PFE", "AMZN", "TSLA"]
-    ingest_prices(tickers, start="2023-01-01", end="2025-01-01")
+    ingest_prices(tickers, start="2023-01-01", end=date.today().strftime("%Y-%m-%d"))

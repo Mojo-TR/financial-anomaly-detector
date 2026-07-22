@@ -98,12 +98,12 @@ def train_and_log(tickers):
                     (:ticker, NOW(), :contamination, :anomaly_count, :drift_ks_statistic, :drift_p_value)
             """), {
                 "ticker": ticker,
-                "contamination": contamination,
-                "anomaly_count": anomaly_count,
-                "drift_ks_statistic": stat if previous_scores else 0.0,
-                "drift_p_value": p_value if previous_scores else 1.0
-            })
-            conn.commit()
+                "contamination": float(contamination),
+                "anomaly_count": int(anomaly_count),
+                "drift_ks_statistic": float(stat),
+                "drift_p_value": float(p_value)
+        })
+        conn.commit()
 
 if __name__ == "__main__":
     tickers = ["AAPL", "MSFT", "JPM", "BAC", "XOM", "CVX", "JNJ", "PFE", "AMZN", "TSLA"]
