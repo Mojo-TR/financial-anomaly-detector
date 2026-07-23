@@ -90,19 +90,33 @@ def train_and_log(tickers):
             print(f"{ticker}: {anomaly_count} anomalies logged")
             
         # Write metadata to Supabase-accessible table
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             conn.execute(text("""
                 INSERT INTO model_metadata 
-                    (ticker, last_trained, contamination, anomaly_count, drift_ks_statistic, drift_p_value)
+                    (
+                        ticker,
+                        last_trained,
+                        contamination,
+                        anomaly_count,
+                        drift_ks_statistic,
+                        drift_p_value
+                    )
                 VALUES 
-                    (:ticker, NOW(), :contamination, :anomaly_count, :drift_ks_statistic, :drift_p_value)
+                    (
+                        :ticker,
+                        NOW(),
+                        :contamination,
+                        :anomaly_count,
+                        :drift_ks_statistic,
+                        :drift_p_value
+                    )
             """), {
                 "ticker": ticker,
                 "contamination": float(contamination),
                 "anomaly_count": int(anomaly_count),
                 "drift_ks_statistic": float(stat),
                 "drift_p_value": float(p_value)
-        })
+            })
         conn.commit()
 
 if __name__ == "__main__":

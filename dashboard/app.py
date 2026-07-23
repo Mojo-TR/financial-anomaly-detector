@@ -229,7 +229,19 @@ if not price_data.empty and len(date_range) == 2:
         latest_run_time = metadata['last_trained'].max()
         avg_drift_ks = metadata['drift_ks_statistic'].mean()
         avg_anomaly_count = metadata['anomaly_count'].mean()
-        contamination = metadata['contamination'].iloc[0]
+        latest_metadata = metadata.sort_values(
+            "last_trained",
+            ascending=False
+        )
+        
+        latest_run_time = (
+            latest_run_time
+            .tz_localize("UTC")
+            .tz_convert("America/Chicago")
+        )
+
+
+        contamination = latest_metadata.iloc[0]["contamination"]
         
         st.subheader("Model Metadata")
         col1, col2, col3, col4 = st.columns(4)
@@ -240,6 +252,9 @@ if not price_data.empty and len(date_range) == 2:
     else:
         st.subheader("Model Metadata")
         st.info("No model metadata available yet.")
+        
+    latest_date = price_data['date'].max()
+    st.subheader(f"Last Data Refresh: {latest_date}")
 
 elif not selected_tickers:
     st.warning("Please select at least one ticker to display data.")
