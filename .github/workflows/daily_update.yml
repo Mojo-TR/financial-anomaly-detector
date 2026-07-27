@@ -2,8 +2,11 @@ name: Daily Market Update
 
 on:
   schedule:
-    - cron: "0 23 * * 1-5"   # Weekdays
+    - cron: "0 22 * * 1-5"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   update:
@@ -16,14 +19,38 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Install and cache R packages
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::anomalize
+            any::tibble
+            any::dplyr
+            any::jsonlite
+            any::readr
+
+      - name: Install Python dependencies
         run: |
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          pip install -r requirements-docker.txt
+
+      - name: Verify DATABASE_URL
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL is missing."
+            exit 1
+          fi
+
+          echo "DATABASE_URL found."
 
       - name: Run pipeline
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
         run: |
           python src/ingest.py
           python src/features.py

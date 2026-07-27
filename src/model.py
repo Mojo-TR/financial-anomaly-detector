@@ -11,7 +11,9 @@ from scipy.stats import ks_2samp
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-mlflow.set_tracking_uri("sqlite:///mlflow.db")
+mlflow.set_tracking_uri(
+    f"sqlite:///{Path(__file__).resolve().parent.parent / 'mlflow.db'}"
+)
 
 engine = create_engine(os.getenv("DATABASE_URL"))
 
