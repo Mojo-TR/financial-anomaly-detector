@@ -20,7 +20,7 @@ st.set_page_config(
 def get_engine():
     return create_engine(os.getenv("DATABASE_URL"))
 
-@st.cache_data
+@st.cache_data(ttl=300)
 def get_tickers():
     try:
         engine = get_engine()
@@ -32,7 +32,7 @@ def get_tickers():
         st.error(f"Could not load tickers: {e}")
         return []
     
-@st.cache_data
+@st.cache_data(ttl=300)
 def get_dates():
     try:
         engine = get_engine()
@@ -44,7 +44,7 @@ def get_dates():
         st.error(f"Could not load date range: {e}")
         return None, None
     
-@st.cache_data
+@st.cache_data(ttl=300)
 def get_price_data(selected_tickers, start_date, end_date):
     if not selected_tickers:
         return pd.DataFrame()
@@ -77,7 +77,7 @@ def get_price_data(selected_tickers, start_date, end_date):
         st.error(f"Could not load price data: {e}")
         return pd.DataFrame()
     
-@st.cache_data
+@st.cache_data(ttl=300)
 def get_model_metadata():
     try:
         engine = get_engine()
@@ -121,6 +121,10 @@ if min_date is None or max_date is None:
 
 date_range = st.sidebar.date_input("Select Date Range", value=(min_date, max_date), min_value=min_date, max_value=max_date)
 show_dual_only = st.sidebar.checkbox("Show only dual-confirmed anomalies")
+
+if st.sidebar.button("🔄 Refresh Data"):
+    st.cache_data.clear()
+    st.rerun()
 
 if len(date_range) != 2:
     st.warning("Please select both a start and end date.")
